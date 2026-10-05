@@ -81,6 +81,24 @@ const STAGES = [
   { value: 'completed', label: 'Completed / Won' },
 ];
 
+const formatDemoDateTime = (val) => {
+  if (!val) return null;
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return val;
+    return d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch (e) {
+    return val;
+  }
+};
+
 const ManageLeads = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1091,8 +1109,8 @@ const ManageLeads = () => {
                               )}
                               {lead.demoTime && (
                                 <div style={{ fontSize: '0.72rem', color: '#b45309', fontWeight: 600, marginTop: 1, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                                  <HiOutlineClock style={{ fontSize: '0.75rem' }} />
-                                  <span>Demo: {lead.demoTime}</span>
+                                  <HiOutlineCalendar style={{ fontSize: '0.75rem' }} />
+                                  <span>Demo: {formatDemoDateTime(lead.demoTime)}</span>
                                 </div>
                               )}
                             </div>
@@ -1983,15 +2001,16 @@ const ManageLeads = () => {
                   <div className="form-group modern-field">
                     <label>
                       <span>Demo Scheduled Date & Time</span>
+                      <span className="field-hint">Select calendar date & time</span>
                     </label>
                     <div className="input-with-icon">
-                      <HiOutlineClock className="input-icon" />
+                      <HiOutlineCalendar className="input-icon" />
                       <input
-                        type="text"
+                        type="datetime-local"
                         className="form-input"
-                        placeholder="e.g. 2026-10-15 11:30 AM"
                         value={editForm.demoTime}
                         onChange={(e) => setEditForm({ ...editForm, demoTime: e.target.value })}
+                        style={{ cursor: 'pointer' }}
                       />
                     </div>
                   </div>
@@ -2214,16 +2233,16 @@ const ManageLeads = () => {
                   <div className="form-group modern-field">
                     <label>
                       <span>Demo Scheduled Date & Time</span>
-                      <span className="field-hint">Scheduled demo</span>
+                      <span className="field-hint">Select calendar date & time</span>
                     </label>
                     <div className="input-with-icon">
-                      <HiOutlineClock className="input-icon" />
+                      <HiOutlineCalendar className="input-icon" />
                       <input
-                        type="text"
+                        type="datetime-local"
                         className="form-input"
-                        placeholder="e.g. 2026-10-15 11:30 AM or 14:00"
                         value={addForm.demoTime}
                         onChange={(e) => setAddForm({ ...addForm, demoTime: e.target.value })}
+                        style={{ cursor: 'pointer' }}
                       />
                     </div>
                   </div>
