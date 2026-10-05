@@ -108,6 +108,7 @@ const ManageLeads = () => {
   // Forms
   const [addForm, setAddForm] = useState({
     doctorName: '', clinicName: '', phone: '', email: '', city: '', address: '', specialization: '',
+    source: '', needForClinic: '', demoTime: '',
   });
 
   const [statusForm, setStatusForm] = useState({
@@ -128,6 +129,9 @@ const ManageLeads = () => {
     city: '',
     address: '',
     specialization: '',
+    source: '',
+    needForClinic: '',
+    demoTime: '',
     stage: 'new',
     callStatus: 'Pending',
     nextFollowUp: '',
@@ -346,7 +350,10 @@ const ManageLeads = () => {
       await leadService.create(addForm);
       toast.success('Lead created successfully');
       setShowAddModal(false);
-      setAddForm({ doctorName: '', clinicName: '', phone: '', email: '', city: '', address: '', specialization: '' });
+      setAddForm({
+        doctorName: '', clinicName: '', phone: '', email: '', city: '', address: '', specialization: '',
+        source: '', needForClinic: '', demoTime: '',
+      });
       fetchLeads();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create lead');
@@ -456,6 +463,9 @@ const ManageLeads = () => {
       city: lead.city || '',
       address: lead.address || '',
       specialization: lead.specialization || '',
+      source: lead.source || '',
+      needForClinic: lead.needForClinic || '',
+      demoTime: lead.demoTime || '',
       stage: lead.stage || 'new',
       callStatus: lead.callStatus || 'Pending',
       nextFollowUp: lead.nextFollowUp || '',
@@ -479,6 +489,9 @@ const ManageLeads = () => {
         city: editForm.city || null,
         address: editForm.address || null,
         specialization: editForm.specialization || null,
+        source: editForm.source || 'manual',
+        needForClinic: editForm.needForClinic || null,
+        demoTime: editForm.demoTime || null,
         stage: editForm.stage,
         callStatus: editForm.callStatus,
         nextFollowUp: editForm.nextFollowUp || null,
@@ -1057,12 +1070,31 @@ const ManageLeads = () => {
                               {getDoctorInitials(lead.doctorName)}
                             </div>
                             <div>
-                              <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
-                                {lead.doctorName}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                                  {lead.doctorName}
+                                </span>
+                                {lead.source && lead.source !== 'manual' && lead.source !== 'google_sheet' && (
+                                  <span className="badge badge-neutral" style={{ fontSize: '0.68rem', padding: '1px 5px', background: '#eff6ff', color: '#1d4ed8' }}>
+                                    {lead.source}
+                                  </span>
+                                )}
                               </div>
                               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                                 {lead.clinicName || lead.specialization || 'Medical Practice'}
                               </div>
+                              {lead.needForClinic && (
+                                <div style={{ fontSize: '0.72rem', color: '#0d9488', marginTop: 2, display: 'inline-flex', alignItems: 'center', gap: 3 }} title={lead.needForClinic}>
+                                  <span>🎯 Need:</span>
+                                  <span style={{ maxWidth: 160, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lead.needForClinic}</span>
+                                </div>
+                              )}
+                              {lead.demoTime && (
+                                <div style={{ fontSize: '0.72rem', color: '#b45309', fontWeight: 600, marginTop: 1, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                  <HiOutlineClock style={{ fontSize: '0.75rem' }} />
+                                  <span>Demo: {lead.demoTime}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -1925,6 +1957,61 @@ const ManageLeads = () => {
                     />
                   </div>
                 </div>
+
+                {/* Section 4: Source & Clinic Requirements */}
+                <div className="modal-section-divider">
+                  <span>Source & Clinic Requirements</span>
+                </div>
+
+                <div className="modal-form-grid">
+                  <div className="form-group modern-field">
+                    <label>
+                      <span>Lead Source</span>
+                    </label>
+                    <div className="input-with-icon">
+                      <HiOutlineBookmark className="input-icon" />
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Facebook Ads, Instagram, Google, Website"
+                        value={editForm.source}
+                        onChange={(e) => setEditForm({ ...editForm, source: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group modern-field">
+                    <label>
+                      <span>Demo Scheduled Date & Time</span>
+                    </label>
+                    <div className="input-with-icon">
+                      <HiOutlineClock className="input-icon" />
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. 2026-10-15 11:30 AM"
+                        value={editForm.demoTime}
+                        onChange={(e) => setEditForm({ ...editForm, demoTime: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group modern-field full-span">
+                    <label>
+                      <span>Need for Clinic</span>
+                    </label>
+                    <div className="input-with-icon">
+                      <HiOutlineChatAlt2 className="input-icon" />
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Patient booking CRM, WhatsApp notifications, Website"
+                        value={editForm.needForClinic}
+                        onChange={(e) => setEditForm({ ...editForm, needForClinic: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="modal-footer">
@@ -2096,6 +2183,64 @@ const ManageLeads = () => {
                         placeholder="e.g. Suite 402, 102 Park Avenue, Near City Hospital"
                         value={addForm.address}
                         onChange={(e) => setAddForm({ ...addForm, address: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Source & Clinic Requirements */}
+                <div className="modal-section-divider">
+                  <span>Source & Clinic Requirements</span>
+                </div>
+
+                <div className="modal-form-grid">
+                  <div className="form-group modern-field">
+                    <label>
+                      <span>Lead Source</span>
+                      <span className="field-hint">e.g. Facebook, Instagram, Google</span>
+                    </label>
+                    <div className="input-with-icon">
+                      <HiOutlineBookmark className="input-icon" />
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Facebook Ads, Instagram, Referral, Website"
+                        value={addForm.source}
+                        onChange={(e) => setAddForm({ ...addForm, source: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group modern-field">
+                    <label>
+                      <span>Demo Scheduled Date & Time</span>
+                      <span className="field-hint">Scheduled demo</span>
+                    </label>
+                    <div className="input-with-icon">
+                      <HiOutlineClock className="input-icon" />
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. 2026-10-15 11:30 AM or 14:00"
+                        value={addForm.demoTime}
+                        onChange={(e) => setAddForm({ ...addForm, demoTime: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group modern-field full-span">
+                    <label>
+                      <span>Need for Clinic</span>
+                      <span className="field-hint">Key requirements & solutions needed</span>
+                    </label>
+                    <div className="input-with-icon">
+                      <HiOutlineChatAlt2 className="input-icon" />
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Patient booking CRM, Automated WhatsApp notifications, Website redesign"
+                        value={addForm.needForClinic}
+                        onChange={(e) => setAddForm({ ...addForm, needForClinic: e.target.value })}
                       />
                     </div>
                   </div>

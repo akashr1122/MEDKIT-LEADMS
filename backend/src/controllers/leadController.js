@@ -59,7 +59,7 @@ const getAll = async (req, res) => {
  */
 const create = async (req, res) => {
   try {
-    const { doctorName, clinicName, phone, email, city, address, specialization } = req.body;
+    const { doctorName, clinicName, phone, email, city, address, specialization, source, needForClinic, demoTime } = req.body;
 
     if (!doctorName) {
       return res.status(400).json({ message: 'Doctor name is required.' });
@@ -73,7 +73,9 @@ const create = async (req, res) => {
       city: city || null,
       address: address || null,
       specialization: specialization || null,
-      source: 'manual',
+      source: source || 'manual',
+      needForClinic: needForClinic || null,
+      demoTime: demoTime || null,
       stage: 'new',
     });
 
@@ -373,6 +375,9 @@ const syncSheet = async (req, res) => {
         const city = row['City'] || row['city'] || row['Location'] || null;
         const address = row['Address'] || row['address'] || row['Full Address'] || row['Clinic Address'] || row['Street'] || null;
         const specialization = row['Specialization'] || row['specialization'] || row['Specialty'] || row['Department'] || null;
+        const source = row['Source'] || row['source'] || row['Lead Source'] || 'google_sheet';
+        const needForClinic = row['Need for Clinic'] || row['Need For Clinic'] || row['needForClinic'] || row['Clinic Need'] || row['Need'] || row['Requirements'] || null;
+        const demoTime = row['Demo Time'] || row['Demo Date & Time'] || row['Demo DateTime'] || row['demoTime'] || row['Demo Date'] || row['Demo Schedule'] || null;
 
         // Check for duplicate by sheet_row_id or matching phone
         let existing = await Lead.findOne({ where: { sheet_row_id: sheetRowId } });
@@ -402,6 +407,18 @@ const syncSheet = async (req, res) => {
             existing.email = String(email).trim();
             hasChanges = true;
           }
+          if (needForClinic && !existing.needForClinic) {
+            existing.needForClinic = String(needForClinic).trim();
+            hasChanges = true;
+          }
+          if (demoTime && !existing.demoTime) {
+            existing.demoTime = String(demoTime).trim();
+            hasChanges = true;
+          }
+          if (source && (!existing.source || existing.source === 'google_sheet')) {
+            existing.source = String(source).trim();
+            hasChanges = true;
+          }
 
           if (hasChanges) {
             await existing.save();
@@ -420,7 +437,9 @@ const syncSheet = async (req, res) => {
           city: city ? String(city).trim() : null,
           address: address ? String(address).trim() : null,
           specialization: specialization ? String(specialization).trim() : null,
-          source: 'google_sheet',
+          source: source ? String(source).trim() : 'google_sheet',
+          needForClinic: needForClinic ? String(needForClinic).trim() : null,
+          demoTime: demoTime ? String(demoTime).trim() : null,
           sheet_row_id: sheetRowId,
           stage: 'new',
         });
@@ -728,6 +747,9 @@ const update = async (req, res) => {
       city,
       address,
       specialization,
+      source,
+      needForClinic,
+      demoTime,
       stage,
       callStatus,
       demoStatus,
@@ -748,6 +770,9 @@ const update = async (req, res) => {
     if (city !== undefined) updateData.city = city;
     if (address !== undefined) updateData.address = address || null;
     if (specialization !== undefined) updateData.specialization = specialization;
+    if (source !== undefined) updateData.source = source;
+    if (needForClinic !== undefined) updateData.needForClinic = needForClinic;
+    if (demoTime !== undefined) updateData.demoTime = demoTime;
     if (stage !== undefined) updateData.stage = stage;
     if (callStatus !== undefined) updateData.callStatus = callStatus;
     if (demoStatus !== undefined) updateData.demoStatus = demoStatus;

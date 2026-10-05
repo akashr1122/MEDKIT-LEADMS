@@ -46,6 +46,14 @@ const Lead = sequelize.define('Lead', {
     allowNull: true,
     defaultValue: 'manual',
   },
+  needForClinic: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  demoTime: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   stage: {
     type: DataTypes.ENUM('new', 'calling', 'demo', 'completed'),
     defaultValue: 'new',
