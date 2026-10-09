@@ -2,7 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { sequelize, testConnection } = require('./config/database');
-const { User } = require('./models');
+const { User, Lead } = require('./models');
+const { normalizeStoredDemoTimes } = require('./utils/schedule');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -100,6 +101,14 @@ const startServer = async () => {
 
     // Seed admin user
     await seedAdmin();
+
+    // Normalize old demo times so they match the date filters
+    try {
+      const fixed = await normalizeStoredDemoTimes(Lead);
+      if (fixed) console.log(`✅ Normalized demo time for ${fixed} lead(s).`);
+    } catch (error) {
+      console.error('❌ Error normalizing demo times:', error.message);
+    }
 
     // Start Express
     app.listen(PORT, () => {

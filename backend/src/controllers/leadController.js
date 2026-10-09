@@ -2,6 +2,7 @@ const { Lead, User, Setting } = require('../models');
 const { Op } = require('sequelize');
 const axios = require('axios');
 const { parse } = require('csv-parse/sync');
+const { normalizeDemoTime, buildScheduleFilter } = require('../utils/schedule');
 
 /**
  * Get all leads (Admin) - GET /api/leads
@@ -16,17 +17,9 @@ const getAll = async (req, res) => {
     if (demoStatus) where.demoStatus = demoStatus;
     if (assignedCallingAgentId) where.assignedCallingAgentId = assignedCallingAgentId;
     if (assignedDemoAgentId) where.assignedDemoAgentId = assignedDemoAgentId;
-    if (followUpDate) where.nextFollowUp = followUpDate;
-    if (followUpTime) where.followUpTime = followUpTime;
-    if (timeSlot) {
-      if (timeSlot === 'morning') {
-        where.followUpTime = { [Op.between]: ['06:00', '11:59'] };
-      } else if (timeSlot === 'afternoon') {
-        where.followUpTime = { [Op.between]: ['12:00', '16:59'] };
-      } else if (timeSlot === 'evening') {
-        where.followUpTime = { [Op.between]: ['17:00', '23:59'] };
-      }
-    }
+    // Date / time filters match leads whose call follow-up OR demo is scheduled then
+    const scheduleFilter = buildScheduleFilter({ followUpDate, followUpTime, timeSlot });
+    if (scheduleFilter) where[Op.and] = [scheduleFilter];
 
     if (search) {
       where[Op.or] = [
@@ -75,7 +68,7 @@ const create = async (req, res) => {
       specialization: specialization || null,
       source: source || 'manual',
       needForClinic: needForClinic || null,
-      demoTime: demoTime || null,
+      demoTime: normalizeDemoTime(demoTime) || null,
       stage: 'new',
     });
 
@@ -412,7 +405,7 @@ const syncSheet = async (req, res) => {
             hasChanges = true;
           }
           if (demoTime && !existing.demoTime) {
-            existing.demoTime = String(demoTime).trim();
+            existing.demoTime = normalizeDemoTime(demoTime);
             hasChanges = true;
           }
           if (source && (!existing.source || existing.source === 'google_sheet')) {
@@ -439,7 +432,7 @@ const syncSheet = async (req, res) => {
           specialization: specialization ? String(specialization).trim() : null,
           source: source ? String(source).trim() : 'google_sheet',
           needForClinic: needForClinic ? String(needForClinic).trim() : null,
-          demoTime: demoTime ? String(demoTime).trim() : null,
+          demoTime: normalizeDemoTime(demoTime),
           sheet_row_id: sheetRowId,
           stage: 'new',
         });
@@ -552,17 +545,9 @@ const getMyLeads = async (req, res) => {
     const where = { assignedCallingAgentId: req.user.id };
 
     if (callStatus) where.callStatus = callStatus;
-    if (followUpDate) where.nextFollowUp = followUpDate;
-    if (followUpTime) where.followUpTime = followUpTime;
-    if (timeSlot) {
-      if (timeSlot === 'morning') {
-        where.followUpTime = { [Op.between]: ['06:00', '11:59'] };
-      } else if (timeSlot === 'afternoon') {
-        where.followUpTime = { [Op.between]: ['12:00', '16:59'] };
-      } else if (timeSlot === 'evening') {
-        where.followUpTime = { [Op.between]: ['17:00', '23:59'] };
-      }
-    }
+    // Date / time filters match leads whose call follow-up OR demo is scheduled then
+    const scheduleFilter = buildScheduleFilter({ followUpDate, followUpTime, timeSlot });
+    if (scheduleFilter) where[Op.and] = [scheduleFilter];
 
     if (search) {
       where[Op.or] = [
@@ -772,7 +757,7 @@ const update = async (req, res) => {
     if (specialization !== undefined) updateData.specialization = specialization;
     if (source !== undefined) updateData.source = source;
     if (needForClinic !== undefined) updateData.needForClinic = needForClinic;
-    if (demoTime !== undefined) updateData.demoTime = demoTime;
+    if (demoTime !== undefined) updateData.demoTime = normalizeDemoTime(demoTime);
     if (stage !== undefined) updateData.stage = stage;
     if (callStatus !== undefined) updateData.callStatus = callStatus;
     if (demoStatus !== undefined) updateData.demoStatus = demoStatus;
