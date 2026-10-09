@@ -81,22 +81,40 @@ const STAGES = [
   { value: 'completed', label: 'Completed / Won' },
 ];
 
-const formatDemoDateTime = (val) => {
+const pad2 = (n) => String(n).padStart(2, '0');
+const toLocalDateStr = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+// "YYYY-MM-DD[THH:mm]" is read as local time so date-only demos don't shift by the timezone offset
+const parseDemoDateTime = (val) => {
   if (!val) return null;
-  try {
-    const d = new Date(val);
-    if (isNaN(d.getTime())) return val;
-    return d.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-  } catch (e) {
-    return val;
+  const m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+  if (m) {
+    return {
+      date: new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)),
+      hasTime: m[4] !== undefined,
+    };
   }
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return null;
+  return { date: d, hasTime: true };
+};
+
+const formatDemoDateTime = (val) => {
+  const parsed = parseDemoDateTime(val);
+  if (!parsed) return val || null;
+  return parsed.date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    ...(parsed.hasTime ? { hour: 'numeric', minute: '2-digit', hour12: true } : {}),
+  });
+};
+
+// Demo day as YYYY-MM-DD: from demoTime (Add/Edit/Sheet), else demoDate (Assign Demo)
+const getDemoDateStr = (lead) => {
+  const parsed = parseDemoDateTime(lead.demoTime);
+  if (parsed) return toLocalDateStr(parsed.date);
+  return lead.demoDate || null;
 };
 
 const ManageLeads = () => {
@@ -219,15 +237,12 @@ const ManageLeads = () => {
     loadSheetConfig();
   }, [fetchLeads, fetchAgents]);
 
-  const getTodayStr = () => {
-    const d = new Date();
-    return d.toISOString().split('T')[0];
-  };
+  const getTodayStr = () => toLocalDateStr(new Date());
 
   const getTomorrowStr = () => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
+    return toLocalDateStr(d);
   };
 
   const hasActiveFilters = filterStage || filterCallStatus || filterFollowUpDate || filterFollowUpTime || filterTimeSlot || search;
@@ -674,6 +689,18 @@ const ManageLeads = () => {
     return { formatted, badge, label, isToday: diffDays === 0, time: formatTime(timeStr) };
   };
 
+  const getDemoInfo = (lead) => {
+    const value = lead.demoTime || lead.demoDate;
+    if (!value) return null;
+    const day = formatFollowUpInfo(getDemoDateStr(lead));
+    const showDay = day && (day.label === 'Today' || day.label === 'Tomorrow');
+    return {
+      formatted: formatDemoDateTime(value),
+      badge: showDay ? day.badge : null,
+      dayLabel: showDay ? day.label : null,
+    };
+  };
+
   const getDoctorInitials = (name) => {
     if (!name) return 'DR';
     return name.replace(/^(dr\.?\s*)/i, '').slice(0, 2).toUpperCase();
@@ -698,7 +725,12 @@ const ManageLeads = () => {
             {filterFollowUpDate && (
               <span className="badge badge-warning" style={{ fontSize: '0.75rem', gap: 6 }}>
                 <HiOutlineCalendar />
-                Follow-up: {filterFollowUpDate}
+                Follow-ups &amp; Demos: {filterFollowUpDate}
+                <span style={{ fontWeight: 500, opacity: 0.85 }}>
+                  ({leads.filter((l) => l.nextFollowUp === filterFollowUpDate).length} follow-up
+                  {' · '}
+                  {leads.filter((l) => getDemoDateStr(l) === filterFollowUpDate).length} demo)
+                </span>
                 <button
                   type="button"
                   onClick={() => setFilterFollowUpDate('')}
@@ -823,7 +855,7 @@ const ManageLeads = () => {
                 type="date"
                 value={filterFollowUpDate}
                 onChange={(e) => setFilterFollowUpDate(e.target.value)}
-                title="Filter by exact Follow-up Date"
+                title="Filter by Follow-up or Demo date"
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -852,7 +884,7 @@ const ManageLeads = () => {
                 className={`btn btn-sm ${filterFollowUpDate === getTodayStr() ? 'btn-primary' : 'btn-ghost'}`}
                 onClick={() => setFilterFollowUpDate(filterFollowUpDate === getTodayStr() ? '' : getTodayStr())}
                 style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                title="Show leads to call today"
+                title="Show follow-ups & demos scheduled today"
               >
                 Today
               </button>
@@ -862,7 +894,7 @@ const ManageLeads = () => {
                 className={`btn btn-sm ${filterFollowUpDate === getTomorrowStr() ? 'btn-primary' : 'btn-ghost'}`}
                 onClick={() => setFilterFollowUpDate(filterFollowUpDate === getTomorrowStr() ? '' : getTomorrowStr())}
                 style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                title="Show leads to call tomorrow"
+                title="Show follow-ups & demos scheduled tomorrow"
               >
                 Tomorrow
               </button>
@@ -877,7 +909,7 @@ const ManageLeads = () => {
                 if (e.target.value) setFilterFollowUpTime('');
               }}
               style={{ width: 145, padding: '6px 28px 6px 10px', fontSize: '0.8rem' }}
-              title="Filter by Time Slot"
+              title="Filter follow-ups & demos by time slot"
             >
               <option value="">All Time Slots</option>
               <option value="morning">🌅 Morning (6-12)</option>
@@ -903,7 +935,7 @@ const ManageLeads = () => {
                   setFilterFollowUpTime(e.target.value);
                   if (e.target.value) setFilterTimeSlot('');
                 }}
-                title="Filter by exact Follow-up Time"
+                title="Filter by exact Follow-up or Demo time"
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -1057,6 +1089,7 @@ const ManageLeads = () => {
                   {paginatedLeads.map((lead) => {
                     const isSelected = selectedLeadIds.includes(lead.id);
                     const followUp = formatFollowUpInfo(lead.nextFollowUp, lead.followUpTime);
+                    const demo = getDemoInfo(lead);
 
                     return (
                       <tr key={lead.id} className={isSelected ? 'row-selected' : ''}>
@@ -1107,10 +1140,13 @@ const ManageLeads = () => {
                                   <span style={{ maxWidth: 160, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lead.needForClinic}</span>
                                 </div>
                               )}
-                              {lead.demoTime && (
-                                <div style={{ fontSize: '0.72rem', color: '#b45309', fontWeight: 600, marginTop: 1, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                              {demo && (
+                                <div style={{ fontSize: '0.72rem', color: '#b45309', fontWeight: 600, marginTop: 1, display: 'inline-flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
                                   <HiOutlineCalendar style={{ fontSize: '0.75rem' }} />
-                                  <span>Demo: {formatDemoDateTime(lead.demoTime)}</span>
+                                  <span>Demo: {demo.formatted}</span>
+                                  {demo.dayLabel && (
+                                    <span className={`badge ${demo.badge} badge-xs`}>{demo.dayLabel}</span>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1309,6 +1345,7 @@ const ManageLeads = () => {
               {paginatedLeads.map((lead) => {
                 const isSelected = selectedLeadIds.includes(lead.id);
                 const followUp = formatFollowUpInfo(lead.nextFollowUp, lead.followUpTime);
+                const demo = getDemoInfo(lead);
 
                 return (
                   <div key={lead.id} className={`lead-mobile-card ${isSelected ? 'card-selected' : ''}`}>
@@ -1392,6 +1429,18 @@ const ManageLeads = () => {
                           )}
                         </span>
                       </div>
+
+                      {demo && (
+                        <div className="lead-detail-item">
+                          <span className="detail-label">Demo</span>
+                          <span className="detail-val" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', color: '#b45309', fontWeight: 600 }}>
+                            <HiOutlineCalendar /> {demo.formatted}
+                            {demo.dayLabel && (
+                              <span className={`badge ${demo.badge} badge-xs`}>{demo.dayLabel}</span>
+                            )}
+                          </span>
+                        </div>
+                      )}
 
                       <div className="lead-detail-item">
                         <span className="detail-label">Assigned Reps</span>
